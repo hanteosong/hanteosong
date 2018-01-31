@@ -409,5 +409,66 @@ as
 select employee_id , last_name , salary, commission_pct
 from employees
 where 1<>1;
-
+--9장은 DML과 그것을 보호하는 것 
 rollback;
+
+---10장 DDL 구문, 테이블을 만드는 형태---
+--Table , view , synonym(별칭을 붙히는거), 
+---index(잘 사용하면 쿼리의 성능 향상), Sequence(번호표 발생기와 같음 , 대기표)
+-- [+plsql (procedure)]  이렇게해서 흔히 5대객체,  [+6대객체]라고 도 한다.
+
+--TABLE 생성을 위해서는 권한이 필요하다 
+grant create table to n1;
+--n1 에게 테이블 생성 권한을 주는 grant 명령어
+
+show user;
+--- n1 에게 scott 의 emp 테이블을 보는 권한 부여
+grant select on emp to n1;
+select *from scott.emp;
+
+---hire_date 생성한다. (id number는 8글짜 까지 가능하고 hire date 는 현 시간으로)
+CREATE TABLE hire_dates
+(id NUMBER(8),
+hire_date DATE DEFAULT SYSDATE);
+
+select *from hire_dates;
+
+insert into hire_dates(id)
+values(1);
+
+select id, to_char(hire_date,'yyyy/mm/dd hh24:mi:ss') 
+from hire_dates;
+
+--dept 라는 table을 생성하고 숫자즈 2자릿수, 이름은 14자,
+--loc 은 13자 날짜를 입력하지 않았을 시 현 시간으로 나오게한다.
+CREATE TABLE dept                 
+               (deptno NUMBER(2),
+               dname VARCHAR2(14),
+               loc VARCHAR2(13),
+               create_date DATE DEFAULT SYSDATE);
+
+select *from dept;
+describe dept;--(=desc dept;)
+
+--Varchar2(10) 과  char(10) 의 차이는  **Varchar2가 무조건 빠르다.
+-- char 는 1글짜 2글짜를 넣어도 10의 자리를 차지한다.
+---varchar 는 10개 한계일때 4글짜를 쓰면 4글자만 차지한다.
+--전화번호는 숫자를 쓰지만 연산이 이루어지지 않고,
+---숫자를 입력할 때, 0이 앞에와서 생략되고 2 로 나올수 있다.
+--모양과 데이터가 숫자여도 전화번호는 문자로 저장하는게 낫다
+
+---이미지나 수정불가 파일은 오라클에서 비추다 
+
+--- 제약조건 ---
+--primary key 는 흔히 unique key + not null  null값을 안받으면서 중복안되게
+--db 전체를 운영하는 메타정보같은걸 가지고 있는데 데이터 딕셔내리
+
+
+--모든 table 들을 보여준다 (데이터 딕셔너리)
+select *from tab;
+select *from user_table;
+select *from user_constraints;
+select *from user_indexes;
+
+--constrint 제약조건을 계속 달아간다. 
+---sg2 10장 88p 까지함. 실습은 내일---
