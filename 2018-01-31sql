@@ -1,0 +1,413 @@
+---2018_01_03----
+--6장 JOIN 복습--
+
+---  ORACLE JOIN            //          ANSI JOIN
+--1. EQUI JOIN                   JOIN(" , " 대체) ~ ON ("WHERE" 대체)
+--2. OUTER JOIN       ( LEFT , RIGHT , FULL JOIN [ANSI JOIN 만 가능] )
+--3. NON-EQUI JOIN              JOIN ~ USING
+--4. SELF JOIN                     카르테시아 조인 (= CROSS JOIN)
+
+----USING 절 사용 ----
+
+select employee_id, last_name, location_id, department_id
+FROM employees left join departments
+using (department_id);
+
+-- 연속적으로 outer(left ,right) join을 걸면 성능이 떨어져서 안 쓸 수 있으면 안 써야 한다.
+
+-- 3ways join 을 할때는 한번에 하는게 아니라 하나씩 붙힌다고 생각하고 해라.
+SELECT employee_id, city, department_name
+FROM employees e
+JOIN departments d
+ON d.department_id = e.department_id
+JOIN locations l    --- 또 다른 join 을 수행할때는 하단에 새로 붙힌다.
+ON d.location_id = l.location_id;   --- on 도 마찬가지 
+
+
+--- 1  employees 와 deaprtments 를 연결 시킨 다음 
+select e.last_name, d.department_name
+from employees e    
+join departments d
+on e.department_id = d.department_id;
+
+----2  location 의 city 를 연결 시킨다. 
+select e.last_name as "사원", d.department_name as "부서", l.city as "도시"
+from employees e    
+left join departments d
+on e.department_id = d.department_id
+left join locations l
+on d.location_id = l.location_id;
+
+--- SELF JOIN 일때는 반드시 얼리엇을 걸어줘야 한다.
+
+
+
+--- non_equi join
+
+SELECT e.last_name, e.salary, j.grade_level
+FROM employees e JOIN job_grades j
+-- ON e.salary BETWEEN j.lowest_sal AND j.highest_sal; (위아래 동일)
+on e.salary >= j.lowest_sal and e.salary <=j.highest_sal;
+
+
+SELECT last_name, department_name
+FROM employees
+CROSS JOIN departments ;
+
+
+----7장----
+--subquery
+
+SELECT last_name, salary
+FROM employees
+WHERE salary >
+                       (SELECT salary
+                        FROM employees
+                        WHERE last_name = 'Abel');
+--sub query 로 연결된 SELECT salary FROM employees WHERE last_name = 'Abel' 부분을 괄호로 연결해서 선행 동작하게 한다.
+--- abel 이란 사원의 급여보다 높은 급여의 사람들이 도출되는 값을 구하게 된다.
+
+SELECT last_name, job_id, salary
+FROM employees
+WHERE job_id =
+                       (SELECT job_id
+                      FROM employees
+                      WHERE last_name = 'Taylor')
+AND salary >
+                      (SELECT salary
+                      FROM employees
+                      WHERE last_name = 'Taylor');
+
+-- 우선 taylor 의 joib_id 를 구하게 되고 and 절로 taylor 의 급여보다 큰 급여 라는 2개의 서브쿼리가 붙혀졌다.
+
+SELECT last_name, job_id, salary
+FROM employees
+WHERE salary =
+                      (SELECT MIN(salary)
+                      FROM employees);
+-- min과 같이 연산으로도 사용될 수 있다.
+
+SELECT department_id, MIN(salary)
+FROM employees
+GROUP BY department_id
+having MIN(salary) >
+                      (SELECT MIN(salary)
+                      FROM employees
+                      WHERE department_id = 50);
+-- having 으로도 사용이 가능, 연산이 들어가 min, max , avg 등 where 절이 아닌 having 절로 사용해야 한다.
+
+SELECT employee_id, last_name
+FROM employees
+where salary  =
+                      (SELECT MIN(salary)
+                      FROM employees
+                      GROUP BY department_id);
+-- 이 경우 서브쿼리가 여러행을 가지고 있다. 단일 행 값이 아닌. ( 직원들중에 급여가 낮은 사원 + 부서가 어디인지)
+--- 위와 같은 문제가 발생할 때 써야 하는 것이 " IN " 조건 절 이다.
+
+SELECT last_name, salary, department_id
+FROM employees
+WHERE salary IN (SELECT MIN(salary)
+                      FROM employees
+                      GROUP BY department_id);
+                      
+
+-- ANY 절이 붙게 되면    , 여러 행의 값을 설명할 수 있다. ( 물론 이경우에 ANY 앞에 연산 기호가 있어야 한다)              
+SELECT employee_id, last_name, job_id, salary
+FROM employees
+WHERE salary > ANY
+                      (SELECT salary
+                      FROM employees
+                      WHERE job_id = 'IT_PROG')
+                      AND job_id <> 'IT_PROG';
+                      
+
+SELECT * FROM departments
+WHERE NOT EXISTS
+                      (SELECT * FROM employees
+                      WHERE employees.department_id=departments.department_id);
+ --EXISTS 절은 존재하는지 안하는지 확인 할 수 있다. 그러므로 이를 통해 NULL 값을 확인할 수 있다 .
+ 
+ select job_id
+         ,sum(decode(department_id, 10, 1, 0)) as "d10"
+         ,sum(decode(department_id, 20, 1, 0)) as "d20"
+         ,sum(decode(department_id, 50, 1, 0)) as "d50"
+         ,sum(decode(department_id, 60, 1, 0)) as "d60"
+         ,sum(decode(department_id, 80, 1, 0)) as "d80"
+         ,sum(decode(department_id, 90, 1, 0)) as "d90"
+         ,sum(decode(department_id, 110, 1, 0)) as "d110"
+         ,sum(decode(nvl(department_id,999), 999, 1, 0)) as "None"
+         ,sum(1) as 합계
+from employees
+group by job_id;
+
+
+---- 8장 ---- -
+--테이블 생성--
+create table set_a (
+ a number(2)
+ );
+
+create table set_b (
+ b number(2)
+ ); 
+ 
+ --set_a 에 values 1~6을 입력한 상황--
+ insert into set_a values(1);
+ insert into set_a values(2);
+ insert into set_a values(3);
+ insert into set_a values(4);
+ insert into set_a values(5);
+ insert into set_a values(6);
+ 
+ --- 값을 넣어줄땐 꼭 하나하나 끝에 " ; " 를 달아줘야 한다.
+ insert into set_b values(4);
+ insert into set_b values(5);
+ insert into set_b values(6);
+ insert into set_b values(7);
+ insert into set_b values(8);
+ insert into set_b values(9);
+ -- 6개를 드래그 후 한번만 실행을 한다 --
+ 
+ select * from set_a;
+ 
+ select * from set_b;
+ 
+ drop table set_b purge;  --- 이러면 set_b 가 지워진다.
+ 
+commit;
+
+select a from set_a
+minus
+select b from set_b;
+--union    중복 제거된 모든 데이터 
+--union all   중복 제거 시행 안함.
+---intersect  중복된 데이터만 가져온다.
+----minus 차집합; set_a - set b 의 값이 나오게 된다.
+-----나오는 순서는 상단에 우선있는 열을 따라 나온다 ( A ) 가 나오듯 
+
+select first_name, last_name from employees where department_id = 20
+union all
+select  null, last_name from employees where department_id = 50;
+--열(column)의 갯수가 위는 2개(first,last_name) 아래는 1개여서 오류가 발생한다.
+---이럴경우 없는 공백 부분을 null 등을 넣어서 맞추어줘야한다.
+
+
+---9장 데이터 조작 ---
+
+INSERT INTO DEPARTMENTS(department_id,
+department_name, manager_id, location_id)    --- 넣을 부분을 순서대로 입력하고
+VALUES (70, 'public', 100, 1700);      --- 순서에 맞추어 결과값을 넣어준다.
+
+select *from departments;  -- 확인하면 department_id 70에 public relations 등 데이터값이 들어감
+--문자와 날짜값은 작은 따옴표로
+desc departments; -- 순서 //  순서가 일치하고 모든 column 을 채웠을 경우 생략이가능하다 
+ --- 넣을 부분을 순서대로 입력하고,   column 을 다 입력하고 순서도 중요, 생략의 경우 변경이 어려우므로 풀형태로 입력 필요
+
+INSERT INTO departments(department_name,
+department_id, manager_id, location_id)    
+VALUES ( 'test2', 89, 100, 1700);  
+
+--넣을때 2가지 값만 넣었기 때문에 나머지는 null 값으로 입력된다 (manager_id, location_id)
+---자동으로 들어가는 묵시적, 암시적인 형태
+INSERT INTO departments (department_id,
+department_name)
+VALUES (30, 'Purchasing');
+
+--위의 경우 암시적으로 들어가나 하단과 같이 강제적으로 null 값을 넣을 수도 있다. 
+INSERT INTO departments
+VALUES (100, 'Finance', NULL, NULL);
+
+
+
+INSERT INTO employees (employee_id,
+                                   first_name, last_name,
+                                  email, phone_number,
+                                  hire_date, job_id, salary,
+                                  commission_pct, manager_id,
+                                  department_id)
+VALUES (113, 
+                                  'Louis', 
+                                  'Popp',
+                                  'LPOPP', 
+                                  '515.124.4567',
+                                  SYSDATE, 
+                                  'AC_ACCOUNT', 
+                                  6900,
+                                  NULL, 205, 110);
+
+---새로운 사원 추가----
+INSERT INTO employees
+VALUES (114,
+'Den', 'Raphealy',
+'DRAPHEAL', '515.127.4561',
+TO_DATE('1999/02/03', 'yyyy/mm/dd'),
+'SA_REP', 11000, 0.2, 100, 60);
+
+select * from departments;
+
+---치환을 사용, 숫자타입은 &/ 글자타입은 '&'
+INSERT INTO departments
+(department_id, department_name, location_id)
+VALUES (&department_id, '&department_name',&location);
+
+
+--원상복귀 시키는 것 롤백--
+rollback;
+
+--CTAS (Create table as select 의 약자) 
+create table emp
+as 
+select * from employees;
+--- "emp" 테이블을 생성하고 내용은 employees 와 동일하게 만들었다.
+select * from emp;   --- 테스트용 샘플테이블
+
+drop table emp sales_reps;  --- emp table 을 삭제 시킴.
+
+--하단과 같이 생성했을 때, employees 의 3가지 열만 데이터를 구성할 수 있음.
+create table emp
+as
+select last_name, salary, department_id
+from employees;
+
+--- as 구문을 사용하여 열(column)의 이름을 수정할 수 있다.
+create table emp
+as
+select last_name as "name", salary, department_id
+from employees
+where 1<>1;    ---- 오류가 나도록 1=1 은 같지 않다와 같이 where 절을 넣어놓으면 내용은 안들어가고 테이블만 생성
+
+drop table sales_reps purge;
+select *from sales_reps;
+
+---CTAS (씨타스라고 불림)
+
+create table sales_reps
+as
+select employee_id as id, last_name as name, salary , commission_pct
+from employees
+where 1<>1;
+
+
+INSERT INTO sales_reps(id, name, salary, commission_pct)
+SELECT employee_id, last_name, salary, commission_pct
+FROM employees
+WHERE job_id LIKE '%REP%';
+
+
+---update----113번 아이디의 사원을 부서를 50으로 
+UPDATE employees 
+SET department_id = 50
+WHERE employee_id = 113;
+
+---where 절 생략 연습을 위해 copy_emp 테이블을 생성한다.
+create table copy_emp
+as 
+select * from employees;
+
+update copy_emp
+set department_id = 50;
+
+select *from copy_emp;
+---상단과 같이 조작할 경우 where 절이 없으면 copy_emp 의 모든 부서가 50번 부서로 변경된다.
+
+rollback;
+
+
+---- 하단 서브쿼리를 통해 200번 사원들을 찾아서 100번사원과 같은 부서로 변동된다.
+UPDATE copy_emp
+SET department_id = (SELECT department_id
+                              FROM employees
+                              WHERE employee_id = 100)
+WHERE job_id = (SELECT job_id
+                        FROM employees
+                        WHERE employee_id = 200);
+
+---테이블에서 행 제거하는 방법--
+
+delete from departments
+where department_name = 'Finance';
+
+
+
+                       
+---- 다른테이블을 기반으로 행 삭제 ---
+DELETE FROM employees
+WHERE department_id =    ------ 연결이 "=" 이므로 결과값은 1개만 나와야 한다.
+                       (SELECT department_id
+                       FROM departments
+                       WHERE department_name
+                       LIKE '%Public%');
+                       --이렇게만들면 복잡하고
+                       
+DELETE FROM employees
+WHERE department_id = LIKE '%Public%'); ---- 이렇게 만들면 간단
+
+
+
+--truncate table table_name;  이렇게 사용하면 rollback 이 불가능함 
+---테이블은 빈상태로 테이블 구조는 그대로고 모든 행을 제거
+select *from copy_emp;
+
+
+
+----데이터 트랜잭션 (최소 업무 단위) ----
+-- 다중 명령어로 수행되지만 하나의 행동을 하기 위함이므로 하나가 시행되면 다른하나도 시행되고
+--반대로 하나가 시행안되면 다른 하나도 시행이 안되는 형태 흔히 "동기화" 라고도 생각
+
+---dead lock 상태  서로의 업무가 서로에게 lock 과 wait 걸려서 멈춤
+
+
+--- COMMIT 은 현 데이터의 영구적으로 적용하여 현 트랜잭션을 종료
+--트랜잭션은 무언가가 끝나거나, 시작할때 항상 시작된다.
+---사용용어로는 commit , rollback, savepint  등이 있다. 
+
+rollback;
+--- 상단의 rollback 을 수행하고 트랜잭션이 수행되고 있음---
+
+update employees set salary =salary * 1.1 where last_name = 'Vargas';
+savepoint a;
+update employees set salary =salary * 1.5 where last_name = 'Vargas';
+savepoint b;
+update employees set salary =salary * 0.5 where last_name = 'Vargas';
+savepoint c;
+
+---- rollback 이나 commit 을 통해 이전 savepoint 가 다 사라지고 롤백되거나 , 영구저장 완료가 된다.
+
+rollback to a; --- rollback 의 명령어는 가능하지만 rollforward 와 같은건 없다. 왜냐면 rollback 지점을 상황으로 다 사라지기 
+--savepoint 는 ANSI SQL 에는 없고 ORACLE SQL에만 존재
+--정상적으로 종료했을때는 COMMIT 으로 된 상황이고, 비정상적으로 종료되었을때는 ROLLBACK 이 된다.
+
+
+SELECT employee_id, salary, commission_pct, job_id
+FROM employees
+WHERE job_id = 'SA_REP'
+FOR UPDATE   ---- SA_REP를 락을 걸어놓고 작업을 시작한다.  (남이 중간에 들어와서 수정해버리면 내가 멈추닌까)
+ORDER BY employee_id;
+
+
+Select *from departments;
+                   
+
+INSERT INTO departments(DEPARTMENT_ID,
+DEPARTMENT_NAME, MANAGER_ID, LOCATION_ID)
+VALUES (70, 'Public Relations', 100, 1700);
+
+
+
+INSERT INTO employees
+VALUES (114,'Den', 'Raphealy','DRAPHEAL', '515.127.4561',TO_DATE('1999/02/03', 'YYYY/MM/DD'),
+'SA_REP', 11000, 0.2, 100, 60);
+
+
+Select *from employees;
+
+
+ctas
+create table sales_reps
+as
+select employee_id , last_name , salary, commission_pct
+from employees
+where 1<>1;
+
+rollback;
