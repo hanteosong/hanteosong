@@ -1,0 +1,252 @@
+--http://cafe.naver.com/n1books/46
+---join 관련한 SQL 도움 영상---
+
+--8장 문제, 집합연산자 사용 
+--1) 전체부서에서 사원이없는 부서 
+
+select department_id
+from departments
+minus 
+select department_id
+from employees;
+
+--2) 부서 이름 까지 알고싶을 때는 서브쿼리를 사용 
+select department_name, department_id
+from departments        
+where department_id in                            
+                            (select department_id
+                            from departments
+                            minus 
+                            select department_id
+                                from employees);
+    
+    
+                            
+--10 장 제약조건
+---데이터딕셔너리에서 제약조건 확인
+select *from user_constraints;   --- 어떤 제약조건이 있는지 확인할 수 있다.
+
+--column 수준과 table 수준의 제약조건 구문이 있다.
+
+--column 수준의 제약조건 
+CREATE TABLE member(
+user_id varchar2(20) constraint mem_usr_id_pk PRIMARY KEY,
+user_name varchar2(20) constraint mem_usr_n_nn not null,
+email varchar2(50) constraint mem_email_uk unique,
+age number(3)
+);
+select *from member;
+
+insert into member(user_id, user_name, age, email)
+                values ('taiji','서태지', 42, 'han@han');
+insert into member(user_id, user_name, age, email)
+                values ('crom','신해철',48, 'asdfa@navdf');                   
+insert into member(user_id, user_name, age, email)
+                values ('jaeha','유재하',60, 'songsong@hahan');
+insert into member values ('qweeha','양현석',62,null );
+commit;
+--이 경우 제약조건을 따로 설정하지 않았기 때문에 제약조건의 이름이 프로그램의 규칙에 따라 설정된다.
+
+--제약 조건 --  
+select *from user_constraints
+where table_name = 'MEMBER';
+                  
+drop table MEMeBER purge;
+
+-- i18n  = internationalization   i 와  n 사이가 18개가 있어 다음과 같이 표기하고 다국어 처리라고 한다.
+
+--테이블 수준의 제약 조건 
+create table member(
+   user_id      varchar2(20),
+   user_name varchar2(20),
+   age           number(3),
+   email        varchar(50),
+constraint mem_usr_id_pk primary key(user_id),  ---mem_usr_id_pk 이부분은 제약조건 이름 다는거지 없어도 무방
+constraint mem_usr_name_nn check(user_name is not null),  --- 위와 동일
+constraint mem_usr_email_uk unique(email)
+);
+
+drop table member purge;
+select *from board;
+
+---board 테이블 만듬---
+
+no number,
+title varchar2(100),
+content varchar2(4000),  ---varchar2 의 최대치는 4000자 이다.
+user_id varchar(20),
+   constraint brd_no_pk primary key(no),
+   constraint brd_title_nn check(title is not null),
+);
+          
+--- 시퀀스  // 은행 번호표와 같이 primary key 가 여러사람에게 주면 문제발생, 고유번호를 순서대로 주도록
+    
+       
+CREATE SEQUENCE sequence
+    [INCREMENT BY n] --- n번 간격으로 숫자가나옴  시퀸스 번호 사이 간격
+    [START WITH n]    --- n 번 번호부터 시작 
+    [{MAXVALUE n | NOMAXVALUE}]  --- 시퀸스가 생성할 수 있는 최대 값
+    [{MINVALUE n | NOMINVALUE}]
+    [{CYCLE | NOCYCLE}]  --- 최대, 최소값 도달후 반복수준 
+    [{CACHE n | NOCACHE}];   --- 메모리, n=20 이면 미리 메모리에서 20 개를 가져와 놓는다 (예열 시키듯)
+       
+--- 시퀀스를 사용할 때 원본데이터를 손대지 말 것.       
+
+CREATE SEQUENCE dept_deptid_seq
+    INCREMENT BY 10
+    START WITH 120
+    MAXVALUE 200
+    CACHE 5
+    NOCYCLE;
+
+--120부터 10씩 130,140,150,160.... 로 진행. CACHE 가 5 이므로 서버가 끊어졌을때 다시 킬때 5번 점프한 170이 나온다 
+select dept_deptid_seq.currval from dual;
+--NEXTval 하면 다음 값, currval 하면 현재값이 나온다.
+
+
+--값을 넣으면 2500 다음 값에 support 값이 2500으로 입력
+INSERT INTO departments(department_id,
+department_name, location_id)
+VALUES (dept_deptid_seq.NEXTVAL,
+'Support', 2500);
+
+--1)우선 시퀀스를 작성한다.
+--board(brd) 에 시퀀스를 만든다
+create sequence brd_no_seq nocache;
+
+insert into board(no, user_id, title, content)
+values(brd_no_seq.nextval, 'taiji','난 알아요','이 밤이 흐르고흐르면');
+--상단과 같이 values 값을 넣어주면 board 의 number 부분인 no 에서 값을 넣을때마다 숫자가 1 씩늘어난다.
+---지금 값을 reference 로 member와 연결되어 있다. 그래서 당연히 member에 있는 값을 입력해야 값이 도출된다.
+select *from board;
+
+insert into board(no,user_id,title,content)
+values(brd_no_seq.nextval, 'crom', '그대에게', '숨가쁘게 살아가는 시간속에도');
+
+
+--글번호 / 제목 / 이름(아이디)
+
+insert into board(no,user_id,title,content)
+values(brd_no_seq.nextval, 'crom', '그대에게', '숨가쁘게 살아가는 시간속에도');
+
+
+select no,title,user_id
+from board
+  references member(user_id);
+
+
+select b.no as " 글번호 "
+        ,b.title as " 제목 " 
+        ,m.user_name || '('||b.user_id||')' as "이름(이이디)"                        
+from board b
+join member m
+on b.user_id = m.user_id
+order by b.no asc;
+
+insert into board(no,user_id,title,content)
+values(brd_no_seq.nextval, 'jaeha','우울한편지','일부로 그랬는지');
+
+--부서t , 사원 t 해서 2개 table 이 있다. 
+
+--view 는 쿼리를 저장하고 있는 object ( name select 일 뿐  실 date 가 저장되어 있는건 아님 )
+
+
+
+--- 11장 View ---
+
+---모든 정보가 아닌 일부 정보만을 보여주고 싶을 때,
+select last_name, job_id, department_id
+from employees;
+
+---- 위와 같은 권한만을 넘겨주고 싶을 떄
+create view emp_test
+as
+select last_name, job_id, department_id
+from employees;
+
+--여기 까지 하면 select 된 정보만을 제공할 수 있다 
+select *from emp_test;
+
+--권한 넘기기 --
+grant select on emp_test to scott;
+
+--conn sys/sys 관리자 권한으로 n1 에게 권한을 줌 
+grant create view to n1;
+
+----------------------
+--conn scott/tiger--  
+---scott 계정으로 들어간뒤 n1 의 view(emp_test) 를 볼 수 있다.
+select *from n1.emp_test;
+
+desc n1.emp_test;
+--------------------
+---conn n1/n1----
+--------------------
+--view 를 수정할때는 alter 를 통해서 수정하는것이 아니라, 
+
+create view emp_test
+as
+select employee_id, last_name, job_id, department_id from employees;
+---위와 같이 하는게 아니라 
+
+create or replace view emp_test
+as
+select employee_id as "id", last_name, job_id as "job"
+         , department_id as "deptno"  
+from employees;
+--- or replace 로 수정을 할 수있다. view 의 자료 추가 혹은 삭제  변경 등 
+
+desc emp_test;
+
+
+---complex view  복합 뷰 생성 ---
+CREATE OR REPLACE VIEW dept_sum_vu
+(name, minsal, maxsal, avgsal)
+AS SELECT d.department_name, MIN(e.salary),
+MAX(e.salary),AVG(e.salary)
+FROM employees e JOIN departments d
+ON (e.department_id = d.department_id)
+GROUP BY d.department_name;
+
+grant select,update,insert on emp_test to scott;
+-------------------------
+---conn scott/tiger----
+-------------------------
+select *from n1.emp_test;
+
+
+update n1.emp_test set
+     deptno=80
+where id = 144;
+
+
+update n1.emp_test set
+ deptno = 80
+ where 
+  id = 144;
+    
+----INDEX----
+--크기가 얼마안될때는 BITMAP 을 만들어주나 일반적으로
+
+create index emp_last_name_idx
+on employees(last_name);
+---index는 공부량이 더필요하고 현시점에서는 만들필요가 없다.
+---index 생성에서 자동적으로 primary key 와 unique key 가 입력된다고 보면된다.
+----index를 순차적으로 만들어서 그 안에서 우선적으로 서칭된다 (전체 다 확인하기에는 비 효율적)
+----list 를 만들때는 비효율적이고 검색 기능을 만들어 특정기능을 뽑아낼 때 효율적이다.
+
+
+---11장 마지막 동의어 --
+grant create synonym to n1;
+CREATE SYNONYM 사원 
+FOR employees;
+---길어지는 단어를 짧게 축약해서 동의어를 만드는것. dept_sum_vu 를 d_sum 으로도 가능하게한다.
+
+--삭제역시 drop synonym d_sum 과 같이 간단한다 (purge 기능은 휴지통을 거치지않고 바로삭제하는 것인데 지금 단계에서는 필요가 없다.)
+
+
+select *from 사원;
+
+
+
+
